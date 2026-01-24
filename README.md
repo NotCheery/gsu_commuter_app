@@ -1,4 +1,7 @@
-
+To get it running on your machine:
+- git pull (or clone if you haven't yet)
+- Run npm install (This is important! It downloads the new libraries I added).
+- npm run dev
 
 Install dependencies
 - npm install axios
