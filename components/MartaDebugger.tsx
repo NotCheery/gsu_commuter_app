@@ -19,7 +19,7 @@ export default function MartaDebugger() {
             const response = await axios.get('/api/marta?station=Georgia+State');
 
             setTrains(response.data)
-            setLastUpdated(new Date().toLocaleDateString());
+            setLastUpdated(new Date().toLocaleTimeString());
 
             console.log("✅ Data received:", response.data);
 
@@ -54,4 +54,6 @@ export default function MartaDebugger() {
     </div>
   );
 };
+
+
 
