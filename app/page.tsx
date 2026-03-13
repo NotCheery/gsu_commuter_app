@@ -1,14 +1,15 @@
-"use client";
+"use client";   // It is required to enable interactions—such as clicks and input—in Next.js.
 
 import { useState } from 'react';
 import Badge from '../components/Badge';
 import Card from '../components/Card'; 
 
 export default function Dashboard() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [commuteMode, setCommuteMode] = useState("CAR");
+  // 1. State Management (React State)
+  const [searchQuery, setSearchQuery] = useState("");  // Save Search Term
+  const [commuteMode, setCommuteMode] = useState("CAR");  // Current Mode (Car or MARTA)
 
-  // Placeholder Data
+  // 2. Placeholder Data: Dummy data used until the actual API connection is established.
   const parkingDecks = [
     { name: "T Deck", status: "Full", location: "43 Gilmer St SE" },
     { name: "M Deck", status: "Open", location: "33 Auburn Ave" },
@@ -28,6 +29,7 @@ export default function Dashboard() {
     { line: "Bus Route 89", msg: "Minor detour near Five Points", type: "detour" }
   ];
 
+  // 3. Search Filtering Logic: Selects only the data containing the characters entered by the user.
   const filteredDecks = parkingDecks.filter(deck => 
     deck.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -36,41 +38,45 @@ export default function Dashboard() {
     station.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // 4. Directions Function: Clicking this links to Google Maps.
   const handleDirections = (dest: string) => {
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest + " Georgia State University")}`, '_blank');
   };
 
   return (
-    <main className="flex h-screen w-full bg-[#F8FAFC] font-sans overflow-hidden text-slate-900">
+    <main className="flex h-screen w-full bg-[#FDFCF7] font-sans overflow-hidden text-slate-900">
       
-      {/* 1. Sidebar */}
+      {/* Left: Sidebar Section */}
       <section className="w-[420px] bg-white border-r border-slate-200 shadow-xl flex flex-col z-30 overflow-hidden">
         
-        {/* Header Section */}
+        {/* App Logo Header Area */}
         <div className="p-8 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-br-[40px] shadow-lg">
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-            <span>🔹</span> GSU COMMUTER <span>🔹</span>
+          <h1 className="text-2xl font-black tracking-tighter flex items-center gap-2 italic">
+            <span className="opacity-50 font-light">[</span> 
+            GSU COMMUTER 
+            <span className="opacity-50 font-light">]</span>
           </h1>
-          <p className="text-xs font-medium opacity-80 mt-1 ml-7 tracking-wide">SMART CAMPUS NAVIGATION</p>
+          <p className="text-[10px] font-bold opacity-70 mt-1 ml-4 tracking-[0.2em]">SMART CAMPUS NAVIGATION</p>
         </div>
 
-        {/* Search Bar */}
-        <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+        {/* Search Bar Area */}
+        <div className="px-8 py-6 border-b border-slate-100 bg-[#F9F7F0]/50">
           <div className="relative w-full">
             <input 
               type="text"
               placeholder="Search for parking or stations..."
-              className="w-full pl-6 pr-12 py-3.5 bg-white border-2 border-slate-200 focus:border-blue-400 rounded-xl text-sm transition-all outline-none shadow-sm box-border"
+              className="w-full pl-6 pr-12 py-3.5 bg-[#FDFCF7] border-2 border-slate-200 focus:border-blue-300 rounded-xl text-sm transition-all outline-none shadow-inner box-border"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <span style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)' }}
-              className="text-slate-400 text-lg pointer-events-none">🔍</span>
+              className="text-slate-400 text-lg pointer-events-none">⌖</span>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {/* List Output Area */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+          {/* Display parking list in Car Mode. */}
           {commuteMode === "CAR" ? (
             <div className="animate-in fade-in slide-in-from-left-4 duration-500">
               <div className="flex items-center justify-between mt-8 mb-4 px-10">
@@ -91,6 +97,7 @@ export default function Dashboard() {
               </div>
             </div>
           ) : (
+            /* Display station information and alerts when in MARTA mode. */
             <div className="animate-in fade-in slide-in-from-left-4 duration-500">
               <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mt-8 mb-4 px-10">Nearby Stations</h2>
               <div className="flex flex-col border-t border-slate-100 mb-10">
@@ -105,6 +112,7 @@ export default function Dashboard() {
                 ))}
               </div>
 
+              {/* Rendering MARTA Delay Alerts */}
               <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-10">System Alerts</h2>
               <div className="flex flex-col border-t border-slate-100">
                 {martaAlerts.map((alert, i) => (
@@ -131,8 +139,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Bottom Button */}
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100">
+        {/* Fixed Bottom Button: Get Directions to School */}
+        <div className="p-6 bg-[#F9F7F0]/80 border-t border-slate-100">
           <button 
             onClick={() => handleDirections("GSU Campus")} 
             className="w-full py-4 bg-slate-900 text-white rounded-[20px] font-bold shadow-xl hover:bg-blue-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
@@ -142,23 +150,36 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* 2. Main Area (Map Loading) */}
-      <section className="flex-1 relative bg-slate-100/30">
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 flex bg-white/90 backdrop-blur-md p-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-white/50 z-20">
+      {/* Right: Map Area (The space where map components will be placed) */}
+      <section className="flex-1 relative bg-[#FDFCF7]">
+        {/* Top mode switch button (CAR / MARTA) */}
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 flex gap-3 z-20 bg-white/40 p-1.5 backdrop-blur-md rounded-full shadow-lg border border-white/20">
           <button 
             onClick={() => setCommuteMode("CAR")}
-            className={`px-12 py-3 rounded-full text-sm font-black transition-all ${commuteMode === "CAR" ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+            style={{ 
+              backgroundColor: commuteMode === "CAR" ? "#BFA892" : "transparent",
+              color: commuteMode === "CAR" ? "white" : "#737368",
+              borderColor: commuteMode === "CAR" ? "#4c4c45" : "transparent"
+            }}
+             className={`px-12 py-3 rounded-full text-xs font-black transition-all border-2 ${commuteMode === "CAR" ? "shadow-md" : ""}`}
           >
-            🚗 CAR
+             CAR
           </button>
+
           <button 
             onClick={() => setCommuteMode("MARTA")}
-            className={`px-12 py-3 rounded-full text-sm font-black transition-all ${commuteMode === "MARTA" ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+            style={{ 
+              backgroundColor: commuteMode === "MARTA" ? "#BFA892" : "transparent",
+              color: commuteMode === "MARTA" ? "white" : "#737368",
+              borderColor: commuteMode === "MARTA" ? "#4c4c45" : "transparent"
+            }}
+            className={`px-12 py-3 rounded-full text-xs font-black transition-all border-2 ${commuteMode === "MARTA" ? "shadow-md" : ""}`}
           >
-            🚆 MARTA
+             MARTA
           </button>
         </div>
 
+        {/* Map Loading Indicator (Actual Map) */}
         <div className="w-full h-full flex flex-col items-center justify-center">
           <div className="relative">
             <div className="w-32 h-32 border-8 border-blue-50 border-t-blue-500 rounded-full animate-spin"></div>
