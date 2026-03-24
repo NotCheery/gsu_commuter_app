@@ -1,0 +1,46 @@
+/* Container holding sidebar + map */
+.map-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+/* Sidebar styling */
+.side-panel {
+  width: 300px;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding: 16px;
+}
+
+/* Map should always fill available space */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Optional: improve appearance of popup text */
+.leaflet-popup-content {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Marker dot used in sidebar list */
+.availability-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Prevent body from interfering with full-height layout */
+html,
+body,
+#__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
