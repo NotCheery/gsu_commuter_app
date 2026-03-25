@@ -1,56 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import Card from "../components/Card";
 
-// Dynamically import CampusMap (Leaflet requirement)
+// Dynamically import CampusMap because Leaflet requires client-side rendering
 const CampusMap = dynamic(() => import("@/components/CampusMap"), {
   ssr: false,
 });
 
 export default function Dashboard() {
+  // 🔹 Controls search input
   const [searchQuery, setSearchQuery] = useState("");
-  const [commuteMode, setCommuteMode] = useState("CAR");
 
-  // MARTA data
-  const [martaData, setMartaData] = useState([]);
-  const [trainData, setTrainData] = useState([]);
+  // 🔹 Controls whether we are viewing CAR or MARTA mode
+  const [commuteMode, setCommuteMode] = useState<"CAR" | "MARTA">("CAR");
 
-  // ✅ Fetch MARTA bus data
-  useEffect(() => {
-    if (commuteMode !== "MARTA") return;
-
-    async function fetchBus() {
-      try {
-        const res = await fetch("/api/marta?route=110");
-        const data = await res.json();
-        setMartaData(data || []);
-      } catch (err) {
-        console.error("Bus fetch error:", err);
-      }
-    }
-
-    fetchBus();
-  }, [commuteMode]);
-
-  // ✅ Fetch MARTA train data
-  useEffect(() => {
-    if (commuteMode !== "MARTA") return;
-
-    async function fetchTrain() {
-      try {
-        const res = await fetch("/api/marta?station=Georgia State");
-        const data = await res.json();
-        setTrainData(data || []);
-      } catch (err) {
-        console.error("Train fetch error:", err);
-      }
-    }
-
-    fetchTrain();
-  }, [commuteMode]);
-
+  // ---------------------------
+  // Static parking data
+  // ---------------------------
   const parkingDecks = [
     { name: "T Deck", status: "Full", location: "43 Gilmer St SE" },
     { name: "M Deck", status: "Open", location: "33 Auburn Ave" },
@@ -59,12 +27,18 @@ export default function Dashboard() {
     { name: "CC Deck", status: "Open", location: "Campus Center" }
   ];
 
+  // ---------------------------
+  // Static MARTA stations (for sidebar list)
+  // ---------------------------
   const martaStations = [
     { name: "Five Points", status: "Arriving", location: "Northbound - 9 min" },
     { name: "Georgia State", status: "Open", location: "Eastbound - 5 min" },
     { name: "Peachtree Center", status: "Delayed", location: "Southbound - 15 min" }
   ];
 
+  // ---------------------------
+  // Filter lists based on search input
+  // ---------------------------
   const filteredDecks = parkingDecks.filter(deck =>
     deck.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -73,6 +47,9 @@ export default function Dashboard() {
     station.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ---------------------------
+  // Open Google Maps directions
+  // ---------------------------
   const handleDirections = (dest: string) => {
     window.open(
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -85,9 +62,10 @@ export default function Dashboard() {
   return (
     <main className="flex h-screen w-full bg-[#FDFCF7] font-sans overflow-hidden text-slate-900">
 
-      {/* Sidebar */}
-      <section className="w-[420px] bg-white border-r border-slate-200 shadow-xl flex flex-col z-30 overflow-hidden">
+      {/* ===================== SIDEBAR ===================== */}
+      <section className="w-[420px] bg-white border-r border-slate-200 shadow-xl flex flex-col z-30 overflow-hidden relative">
 
+        {/* Header */}
         <div className="p-8 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-br-[40px] shadow-lg">
           <h1 className="text-2xl font-black tracking-tighter italic">
             GSU COMMUTER
@@ -97,16 +75,18 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* Search input */}
         <div className="px-8 py-6 border-b border-slate-100 bg-[#F9F7F0]/50">
           <input
             type="text"
             placeholder="Search for parking or stations..."
-            className="w-full px-4 py-3 border rounded-xl text-sm"
+            className="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
+        {/* Sidebar content changes based on commute mode */}
         <div className="flex-1 overflow-y-auto">
           {commuteMode === "CAR" ? (
             <div>
@@ -135,52 +115,41 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="p-6 border-t">
-          <button
-            onClick={() => handleDirections("GSU Campus")}
-            className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold"
-          >
-            Get Directions to Campus
-          </button>
+        {/* 🔹 BUTTONS AT THE VERY BOTTOM (NO WHITE BLOCK BELOW) */}
+        <div className="p-6 border-t bg-white">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCommuteMode("CAR")}
+              className={`flex-1 py-4 rounded-xl text-xs font-black transition-all ${
+                commuteMode === "CAR"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              🚗 CAR
+            </button>
+
+            <button
+              onClick={() => setCommuteMode("MARTA")}
+              className={`flex-1 py-4 rounded-xl text-xs font-black transition-all ${
+                commuteMode === "MARTA"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              🚆 MARTA
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Map */}
-      <section className="flex-1 relative h-full w-full">
-
-        {/* Mode toggle */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex gap-3 bg-white/60 backdrop-blur-md p-2 rounded-full">
-          <button
-            onClick={() => setCommuteMode("CAR")}
-            className={`px-10 py-2 rounded-full text-xs font-bold ${
-              commuteMode === "CAR" ? "bg-black text-white" : ""
-            }`}
-          >
-            CAR
-          </button>
-
-          <button
-            onClick={() => setCommuteMode("MARTA")}
-            className={`px-10 py-2 rounded-full text-xs font-bold ${
-              commuteMode === "MARTA" ? "bg-black text-white" : ""
-            }`}
-          >
-            MARTA
-          </button>
-        </div>
-
+      {/* ===================== MAP ===================== */}
+      <section className="flex-1 relative h-full w-full z-0">
         <div className="w-full h-full">
-          <CampusMap
-            commuteMode={commuteMode}
-            martaData={martaData}
-            trainData={trainData}
-          />
+          <CampusMap commuteMode={commuteMode} />
         </div>
       </section>
-    </main>
-  );
-}
-      </section>
+
     </main>
   );
 }
