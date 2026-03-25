@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
   CircleMarker,
   Popup,
-  Polyline,
   useMap
 } from "react-leaflet";
 import L from "leaflet";
 import "./CampusMap.css";
 
-// Fix Leaflet default marker icon
+/* ---------------------------
+   Fix Leaflet default marker icons
+   (Leaflet requires manual icon setup in React/Next)
+---------------------------- */
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -21,221 +25,231 @@ L.Icon.Default.mergeOptions({
     "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png"
 });
 
-// Campus center
-const campusCenter = [33.753746, -84.386330];
+/* ---------------------------
+   Map center (GSU campus)
+---------------------------- */
+const CAMPUS_CENTER = [33.753746, -84.38633];
 
-// Sample parking decks
-const sampleParkingDecks = [
-  { id: 1, name: "T Deck", coordinates: [33.755135, -84.386687], availability: 60 },
-  { id: 2, name: "M Deck", coordinates: [33.753237, -84.383996], availability: 25 },
-  { id: 3, name: "K Deck", coordinates: [33.7565, -84.3842], availability: 40 },
-  { id: 4, name: "N Deck", coordinates: [33.7560, -84.3855], availability: 50 },
-  { id: 5, name: "G Deck", coordinates: [33.751995, -84.387549], availability: 80 }
+/* ---------------------------
+   Parking decks (static data)
+---------------------------- */
+const PARKING_DECKS = [
+  { id: 1, name: "T Deck", coords: [33.755135, -84.386687], availability: 60 },
+  { id: 2, name: "M Deck", coords: [33.753237, -84.383996], availability: 25 },
+  { id: 3, name: "K Deck", coords: [33.7565, -84.3842], availability: 40 },
+  { id: 4, name: "N Deck", coords: [33.7560, -84.3855], availability: 50 },
+  { id: 5, name: "G Deck", coords: [33.751995, -84.387549], availability: 80 }
 ];
 
-// Color coding
-const getColor = (availability) => {
-  if (availability > 50) return "green";
-  if (availability > 20) return "orange";
-  return "red";
-};
+/* ---------------------------
+   MARTA stations with coordinates
+---------------------------- */
+const STATIONS = [
+  { name: "Georgia State", coords: [33.7537, -84.3853] },
+  { name: "Five Points", coords: [33.7525, -84.3915] },
+  { name: "Peachtree Center", coords: [33.7599, -84.3876] }
+];
 
-// Recenter map to user location
+/* ---------------------------
+   Helper: Recenter map on user location
+---------------------------- */
 function RecenterMap({ position }) {
   const map = useMap();
+
   useEffect(() => {
     if (position) {
       map.setView(position, 16);
     }
   }, [position, map]);
+
   return null;
 }
 
-export default function CampusMap() {
-  const [userPosition, setUserPosition] = useState(null);
-  const [parkingDecks, setParkingDecks] = useState(sampleParkingDecks);
-  const [martaRoutes, setMartaRoutes] = useState([]);
-  const [commuteOption, setCommuteOption] = useState("car");
+/* ---------------------------
+   Main Map Component
+---------------------------- */
+export default function CampusMap({ commuteMode }) {
   const [map, setMap] = useState(null);
 
-  // ✅ Force map re-render (fixes missing tile alignment)
-  const [mapKey, setMapKey] = useState(0);
+  // Real-time MARTA data
+  const [trainData, setTrainData] = useState([]);
+  const [busData, setBusData] = useState([]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMapKey((prev) => prev + 1);
-    }, 300);
+  // User GPS location
+  const [userPosition, setUserPosition] = useState(null);
 
-    return () => clearTimeout(timer);
-  }, []);
-
-  // ✅ Extra safeguard: invalidate size after mount
-  useEffect(() => {
-    if (!map) return;
-
-    const timer = setTimeout(() => {
-      map.invalidateSize(true);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [map]);
-
-  // Get user location
+  /* ---------------------------
+     Get user's location
+  ---------------------------- */
   useEffect(() => {
     if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        setUserPosition([pos.coords.latitude, pos.coords.longitude]),
-      () => alert("Unable to get your location")
+      (pos) => {
+        setUserPosition([pos.coords.latitude, pos.coords.longitude]);
+      },
+      () => console.warn("Location not available")
     );
   }, []);
 
-  // Parking API placeholder
+  /* ---------------------------
+     Fetch MARTA data when in MARTA mode
+  ---------------------------- */
   useEffect(() => {
-    async function fetchParkingData() {
+    if (commuteMode !== "MARTA") return;
+
+    const fetchData = async () => {
       try {
-        const response = await fetch("/api/parking");
-        const data = await response.json();
-        if (data && data.length > 0) setParkingDecks(data);
-      } catch (error) {
-        console.error("Error fetching parking data:", error);
+        // Fetch train + bus data in parallel
+        const [trainRes, busRes] = await Promise.all([
+          fetch("/api/marta?station=Georgia State"),
+          fetch("/api/marta?route=110")
+        ]);
+
+        const trainJson = await trainRes.json();
+        const busJson = await busRes.json();
+
+        setTrainData(trainJson || []);
+        setBusData(busJson || []);
+      } catch (err) {
+        console.error("MARTA fetch error:", err);
       }
-    }
-    // fetchParkingData();
-  }, []);
+    };
 
-  // MARTA API placeholder
-  useEffect(() => {
-    if (commuteOption !== "marta") return;
+    fetchData();
+  }, [commuteMode]);
 
-    async function fetchMartaRoutes() {
-      try {
-        const response = await fetch("/api/marta");
-        const data = await response.json();
-        if (data.routes) setMartaRoutes(data.routes);
-      } catch (error) {
-        console.error("Error fetching MARTA routes:", error);
-      }
-    }
-    // fetchMartaRoutes();
-  }, [commuteOption]);
+  /* ---------------------------
+     Convert bus coordinates into usable format
+  ---------------------------- */
+  const validBuses = useMemo(() => {
+    return busData
+      .map((bus) => {
+        const lat = parseFloat(bus.LATITUDE);
+        const lng = parseFloat(bus.LONGITUDE);
+        if (isNaN(lat) || isNaN(lng)) return null;
+        return { ...bus, coords: [lat, lng] };
+      })
+      .filter(Boolean);
+  }, [busData]);
 
-  const zoomToDeck = (coordinates) => {
-    if (map) {
-      map.setView(coordinates, 18);
-    }
+  /* ---------------------------
+     Zoom helper when clicking parking
+  ---------------------------- */
+  const zoomTo = (coords) => {
+    if (map) map.setView(coords, 18);
   };
 
   return (
-    <div style={{ display: "flex", height: "100%", width: "100%" }}>
+    <MapContainer
+      center={CAMPUS_CENTER}
+      zoom={16}
+      style={{ height: "100%", width: "100%" }}
+      whenCreated={setMap}
+    >
+      {/* Base map tiles */}
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
 
-      {/* Sidebar */}
-      <div className="side-panel" style={{ width: "300px", overflowY: "auto" }}>
-        <h2>Commute Options</h2>
+      {/* ---------------------------
+          Parking markers (always visible)
+      ---------------------------- */}
+      {PARKING_DECKS.map((deck) => (
+        <CircleMarker
+          key={deck.id}
+          center={deck.coords}
+          radius={10}
+          pathOptions={{ color: "green" }}
+          eventHandlers={{
+            click: () => zoomTo(deck.coords)
+          }}
+        >
+          <Popup>
+            <strong>{deck.name}</strong>
+            <br />
+            Available: {deck.availability}
+          </Popup>
+        </CircleMarker>
+      ))}
 
-        <div>
-          <label>
-            <input
-              type="radio"
-              value="car"
-              checked={commuteOption === "car"}
-              onChange={(e) => setCommuteOption(e.target.value)}
-            />
-            Car
-          </label>
+      {/* ---------------------------
+          MARTA Stations + Train Info
+      ---------------------------- */}
+      {commuteMode === "MARTA" &&
+        STATIONS.map((station, i) => {
+          // Match trains belonging to this station
+          const stationTrains = trainData.filter((train) =>
+            train.STATION?.toLowerCase().includes(station.name.toLowerCase())
+          );
 
-          <label style={{ marginLeft: "10px" }}>
-            <input
-              type="radio"
-              value="marta"
-              checked={commuteOption === "marta"}
-              onChange={(e) => setCommuteOption(e.target.value)}
-            />
-            MARTA
-          </label>
-        </div>
-
-        <h3>Parking Decks</h3>
-        <ul>
-          {parkingDecks.map((deck) => (
-            <li
-              key={deck.id}
-              onClick={() => zoomToDeck(deck.coordinates)}
-              style={{ cursor: "pointer" }}
+          return (
+            <CircleMarker
+              key={i}
+              center={station.coords}
+              radius={8}
+              pathOptions={{ color: "blue" }}
             >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "50%",
-                  backgroundColor: getColor(deck.availability),
-                  marginRight: "8px"
-                }}
-              />
-              {deck.name} ({deck.availability})
-            </li>
-          ))}
-        </ul>
-      </div>
+              <Popup>
+                <strong>{station.name}</strong>
+                <hr />
 
-      {/* Map */}
-      <div style={{ flex: 1, height: "100%" }}>
-        
-        {mapKey > -1 && (
-          <MapContainer
-            key={mapKey}   // ✅ forces clean remount
-            center={campusCenter}
-            zoom={16}
-            style={{ height: "100%", width: "100%" }}
-            whenCreated={setMap}
+                {stationTrains.length > 0 ? (
+                  stationTrains.slice(0, 3).map((train, idx) => (
+                    <div key={idx}>
+                      🚄 {train.DESTINATION}
+                      <br />
+                      ⏱ {train.NEXT_ARR}
+                      <hr />
+                    </div>
+                  ))
+                ) : (
+                  "No train data"
+                )}
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+
+      {/* ---------------------------
+          Live bus markers
+      ---------------------------- */}
+      {commuteMode === "MARTA" &&
+        validBuses.map((bus, i) => (
+          <CircleMarker
+            key={i}
+            center={bus.coords}
+            radius={6}
+            pathOptions={{ color: "orange" }}
           >
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <Popup>
+              Route {bus.ROUTE}
+              <br />
+              {bus.ADHERENCE === "0"
+                ? "On Time"
+                : `${bus.ADHERENCE} min late`}
+            </Popup>
+          </CircleMarker>
+        ))}
 
-            {parkingDecks.map((deck) => (
-              <CircleMarker
-                key={deck.id}
-                center={deck.coordinates}
-                radius={10}
-                pathOptions={{ color: getColor(deck.availability) }}
-              >
-                <Popup>
-                  <strong>{deck.name}</strong>
-                  <br />
-                  Available Spots: {deck.availability}
-                </Popup>
-              </CircleMarker>
-            ))}
+      {/* ---------------------------
+          User location marker
+      ---------------------------- */}
+      {userPosition && (
+        <>
+          <CircleMarker
+            center={userPosition}
+            radius={10}
+            pathOptions={{ color: "blue" }}
+          >
+            <Popup>You are here</Popup>
+          </CircleMarker>
 
-            {userPosition && (
-              <>
-                <CircleMarker
-                  center={userPosition}
-                  radius={10}
-                  pathOptions={{ color: "blue" }}
-                >
-                  <Popup>You are here</Popup>
-                </CircleMarker>
-
-                <RecenterMap position={userPosition} />
-              </>
-            )}
-
-            {commuteOption === "marta" &&
-              martaRoutes.map((route, i) => (
-                <Polyline
-                  key={i}
-                  positions={route}
-                  pathOptions={{ color: "red" }}
-                />
-              ))}
-          </MapContainer>
-        )}
-      </div>
-    </div>
+          {/* Auto recenter map */}
+          <RecenterMap position={userPosition} />
+        </>
+      )}
+    </MapContainer>
   );
 }
