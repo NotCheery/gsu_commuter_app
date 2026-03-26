@@ -1,3 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* REQUIRED for Leaflet to render correctly */
+html, body, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Optional but helpful */
+#root {
+  height: 100%;
+}

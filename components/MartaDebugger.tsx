@@ -29,8 +29,8 @@ export default function MartaDebugger() {
             const trainResponse = await axios.get('/api/marta?station=Georgia+State');
             setTrains(trainResponse.data)
 
-            // Fetch bus data (filtered to Route 816 for now b/c it stops at GSU)
-            const busResponse = await axios.get('/api/marta?route=110');
+            // Fetch bus data (filtered to Route 816 for now b/c it is a reliable GSU route)
+            const busResponse = await axios.get('/api/marta?route=816');
             setBuses(busResponse.data)
 
             // update timestamp
