@@ -1,0 +1,6 @@
+This is a Next.js (Node.js) project. Dependencies are not managed in a requirements.txt file.
+
+Please see the `package.json` file for a list of dependencies.
+
+To install all the required packages, run the following command in your terminal:
+`npm install`
