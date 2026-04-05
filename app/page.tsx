@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Card from "../components/Card";
+import { useNearbyTrains, useNearbyBuses } from "@/lib/hooks/useMartaData";
 
 // Dynamically import CampusMap (Leaflet requires client-side rendering)
 const CampusMap = dynamic(() => import("@/components/CampusMap"), { ssr: false });
@@ -17,23 +18,30 @@ export default function Dashboard() {
   // ---------------------------
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Fetch real-time MARTA data
+  const { trains: nearbyTrains, loading: trainsLoading } = useNearbyTrains(userCoords);
+  const { buses: nearbyBuses, loading: busesLoading } = useNearbyBuses(userCoords);
+
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserCoords({
+          const coords = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserCoords(coords);
+          console.log("✅ Geolocation successful:", coords);
         },
         (err) => {
-          console.error("Geolocation error:", err);
+          console.error("❌ Geolocation error:", err);
+          console.warn("⚠️ Using default GSU location");
           // fallback to default location
           setUserCoords({ lat: 33.7537, lng: -84.3863 });
         }
       );
     } else {
-      console.warn("Geolocation not available, using default location");
+      console.warn("⚠️ Geolocation not available, using default location");
       setUserCoords({ lat: 33.7537, lng: -84.3863 });
     }
   }, []);
@@ -51,42 +59,21 @@ export default function Dashboard() {
   ];
 
   // ---------------------------
-  // Static MARTA TRAIN stations (coords as strings "lng,lat")
-  // ---------------------------
-  const martaStations = [
-    { name: "Five Points", status: "Arriving", location: "8 min wait", coords: "-84.3915,33.7525" },
-    { name: "Georgia State", status: "Open", location: "4 min wait", coords: "-84.3853,33.7537" },
-    { name: "Peachtree Center", status: "Delayed", location: "15 min wait", coords: "-84.3876,33.7599" }
-  ];
-
-  // ---------------------------
-  // Static MARTA BUS routes (coords as strings "lng,lat")
-  // ---------------------------
-  const busRoutes = [
-    { name: "Route 816", location: "Courtland St & Gilmer St", status: "Active", coords: "-84.3855,33.7558", route: "816" },
-    { name: "Route 40", location: "Courtland St & Gilmer St", status: "Active", coords: "-84.3855,33.7558", route: "40" },
-    { name: "Route 816", location: "Piedmont Ave & Auburn Ave", status: "Active", coords: "-84.3842,33.7548", route: "816" },
-    { name: "Route 40", location: "Peachtree Center Ave & John Wesley Dobbs", status: "Active", coords: "-84.3858,33.7583", route: "40" },
-    { name: "Route 110", location: "Peachtree Center Ave & John Wesley Dobbs", status: "Delayed", coords: "-84.3858,33.7583", route: "110" },
-    { name: "Route 21", location: "Decatur St & Central Ave", status: "Active", coords: "-84.3881,33.7531", route: "21" },
-    { name: "Route 42", location: "Decatur St & Central Ave", status: "Active", coords: "-84.3881,33.7531", route: "42" }
-  ];
-
-  // ---------------------------
   // Group bus routes by location
   // ---------------------------
   const groupedBusStops = Object.values(
-    busRoutes.reduce((acc, bus) => {
-      if (!acc[bus.location]) {
-        acc[bus.location] = {
-          location: bus.location,
-          coords: bus.coords,
-          routes: []
+    nearbyBuses.reduce((acc, stop) => {
+      if (!acc[stop.name]) {
+        acc[stop.name] = {
+          name: stop.name,
+          location: stop.name,
+          coords: stop.coords,
+          routes: stop.routes || [],
+          distance: stop.distance,
         };
       }
-      acc[bus.location].routes.push(bus.name);
       return acc;
-    }, {} as Record<string, { location: string; coords: string; routes: string[] }>)
+    }, {} as Record<string, any>)
   );
 
   // ---------------------------
@@ -96,12 +83,12 @@ export default function Dashboard() {
     deck.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredStations = martaStations.filter(station =>
+  const filteredStations = nearbyTrains.filter(station =>
     station.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredBuses = groupedBusStops.filter(stop =>
-    stop.location.toLowerCase().includes(searchQuery.toLowerCase())
+    stop.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // ---------------------------
@@ -211,31 +198,54 @@ export default function Dashboard() {
           {/* TRAIN VIEW */}
           {commuteMode === "TRAIN" && (
             <div className="space-y-1 py-4">
-              {filteredStations.map((station) => (
-                <Card key={station.name} title={station.name} subtitle={station.location} status={station.status} onClick={() => fetchRoute(station.coords)} />
-              ))}
+              {trainsLoading ? (
+                <div className="p-4 text-center text-slate-500 text-sm">Loading nearby stations...</div>
+              ) : filteredStations.length === 0 ? (
+                <div className="p-4 text-center text-slate-500 text-sm">No nearby train stations found</div>
+              ) : (
+                filteredStations.map((station) => {
+                  // Get the next arrival time
+                  const nextArrival = station.arrivals && station.arrivals.length > 0 
+                    ? `${station.arrivals[0].WAITING_TIME || "Unknown"}`
+                    : "No data";
+                  
+                  return (
+                    <Card
+                      key={station.name}
+                      title={station.name}
+                      subtitle={`${(station.distance || 0).toFixed(2)} mi • ${station.line}`}
+                      status={nextArrival}
+                      onClick={() => fetchRoute(station.coords)}
+                    />
+                  );
+                })
+              )}
             </div>
           )}
 
           {/* BUS VIEW */}
           {commuteMode === "BUS" && (
             <div className="space-y-1 py-4">
-              {filteredBuses.map((stop) => {
-                const status = stop.routes.some((r) => {
-                  const bus = busRoutes.find(b => b.name === r && b.location === stop.location);
-                  return bus?.status === "Delayed";
-                }) ? "Delayed" : "Active";
-
-                return (
-                  <Card
-                    key={stop.location}
-                    title={stop.routes.join(", ")}
-                    subtitle={stop.location}
-                    status={status}
-                    onClick={() => fetchRoute(stop.coords)}
-                  />
-                );
-              })}
+              {busesLoading ? (
+                <div className="p-4 text-center text-slate-500 text-sm">Loading nearby bus stops...</div>
+              ) : filteredBuses.length === 0 ? (
+                <div className="p-4 text-center text-slate-500 text-sm">No nearby bus stops found</div>
+              ) : (
+                filteredBuses.map((stop) => {
+                  const routesString = stop.routes.join(", ");
+                  const status = stop.routes && stop.routes.length > 0 ? "Active" : "Pending";
+                  
+                  return (
+                    <Card
+                      key={stop.name}
+                      title={`Routes: ${routesString}`}
+                      subtitle={`${(stop.distance || 0).toFixed(2)} mi • ${stop.name}`}
+                      status={status}
+                      onClick={() => fetchRoute(stop.coords)}
+                    />
+                  );
+                })
+              )}
             </div>
           )}
         </div>
@@ -253,10 +263,9 @@ export default function Dashboard() {
         <CampusMap 
           commuteMode={commuteMode} 
           routePath={routeInfo?.path} 
-          busRoutes={busRoutes} 
+          busRoutes={[]} 
           busData={[]} 
           trainData={[]} 
-          userLocation={userCoords}
         />
       </section>
     </main>
