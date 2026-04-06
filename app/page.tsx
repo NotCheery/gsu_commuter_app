@@ -241,10 +241,50 @@ export default function Dashboard() {
         </div>
 
         {/* TOGGLE BUTTONS */}
-        <div className="p-6 border-t bg-white flex gap-2">
-          <button onClick={() => setCommuteMode("CAR")} className={`flex-1 py-4 rounded-xl text-xs font-black transition-all ${commuteMode === "CAR" ? "bg-blue-600 text-white shadow-lg scale-[1.02]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>🚗 CAR</button>
-          <button onClick={() => setCommuteMode("TRAIN")} className={`flex-1 py-4 rounded-xl text-xs font-black transition-all ${commuteMode === "TRAIN" ? "bg-blue-600 text-white shadow-lg scale-[1.02]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>🚆 TRAIN</button>
-          <button onClick={() => setCommuteMode("BUS")} className={`flex-1 py-4 rounded-xl text-[10px] font-black transition-all ${commuteMode === "BUS" ? "bg-blue-600 text-white shadow-lg scale-[1.02]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>🚌 BUS</button>
+        <div className="p-6 border-t bg-[#F9F7F0] flex gap-2">
+          <button 
+            onClick={() => setCommuteMode("CAR")} 
+            style={{ 
+              backgroundColor: commuteMode === "CAR" ? "#BFA892" : "transparent",
+              color: commuteMode === "CAR" ? "white" : "#737368",
+              borderColor: commuteMode === "CAR" ? "#4c4c45" : "transparent"
+            }}
+            className={`flex-1 py-4 rounded-xl text-xs font-black transition-all border-2 ${
+              commuteMode === "CAR" ? "shadow-md scale-[1.02]" : "bg-slate-100/50 hover:bg-slate-200"
+            }`}
+          >
+            🚗 CAR
+          </button>
+          
+          {/* TRAIN button */}
+          <button
+            onClick={() => setCommuteMode("TRAIN")} 
+            style={{ 
+              backgroundColor: commuteMode === "TRAIN" ? "#BFA892" : "transparent",
+              color: commuteMode === "TRAIN" ? "white" : "#737368",
+              borderColor: commuteMode === "TRAIN" ? "#4c4c45" : "transparent"
+            }}
+            className={`flex-1 py-4 rounded-xl text-xs font-black transition-all border-2 ${
+              commuteMode === "TRAIN" ? "shadow-md scale-[1.02]" : "bg-slate-100/50 hover:bg-slate-200"
+            }`}
+          >
+            🚆 TRAIN
+          </button>
+        
+          {/* BUS button */}
+          <button
+            onClick={() => setCommuteMode("BUS")} 
+            style={{ 
+              backgroundColor: commuteMode === "BUS" ? "#BFA892" : "transparent",
+              color: commuteMode === "BUS" ? "white" : "#737368",
+              borderColor: commuteMode === "BUS" ? "#4c4c45" : "transparent"
+            }}
+            className={`flex-1 py-4 rounded-xl text-xs font-black transition-all border-2 ${
+              commuteMode === "BUS" ? "shadow-md scale-[1.02]" : "bg-slate-100/50 hover:bg-slate-200"
+            }`}
+          >
+            🚌 BUS
+          </button>
         </div>
       </section>
 
