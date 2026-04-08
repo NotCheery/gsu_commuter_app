@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Card from "../components/Card";
+import TrainArrivalDetails from "../components/TrainArrivalDetails";
 import { useNearbyTrains, useNearbyBuses } from "@/lib/hooks/useMartaData";
 
 // Dynamically import CampusMap (Leaflet requires client-side rendering)
@@ -12,6 +13,13 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [commuteMode, setCommuteMode] = useState<"CAR" | "TRAIN" | "BUS">("CAR");
   const [routeInfo, setRouteInfo] = useState<any>(null);
+
+  // ---------------------------
+  // TRAIN DETAIL STATE
+  // ---------------------------
+  const [selectedStation, setSelectedStation] = useState<any>(null);
+  const [trainArrivals, setTrainArrivals] = useState<any[]>([]);
+  const [arrivalsLoading, setArrivalsLoading] = useState(false);
 
   // ---------------------------
   // USER LOCATION STATE
@@ -109,6 +117,34 @@ export default function Dashboard() {
     }
   };
 
+  // ---------------------------
+  // Fetch train arrivals for a selected station
+  // ---------------------------
+  const fetchTrainArrivals = async (station: any) => {
+    setSelectedStation(station);
+    setArrivalsLoading(true);
+    try {
+      const res = await fetch(`/api/marta?station=${encodeURIComponent(station.name)}`);
+      const data = await res.json();
+      setTrainArrivals(data);
+      // Also fetch route info for this station
+      fetchRoute(station.coords);
+    } catch (err) {
+      console.error("Train arrivals fetch error:", err);
+      setTrainArrivals([]);
+    } finally {
+      setArrivalsLoading(false);
+    }
+  };
+
+  // ---------------------------
+  // Back button handler for train details
+  // ---------------------------
+  const handleBackToStations = () => {
+    setSelectedStation(null);
+    setTrainArrivals([]);
+  };
+
   return (
     <main className="flex h-screen w-full bg-[#FDFCF7] font-sans overflow-hidden text-slate-900">
 
@@ -197,30 +233,43 @@ export default function Dashboard() {
 
           {/* TRAIN VIEW */}
           {commuteMode === "TRAIN" && (
-            <div className="space-y-1 py-4">
-              {trainsLoading ? (
-                <div className="p-4 text-center text-slate-500 text-sm">Loading nearby stations...</div>
-              ) : filteredStations.length === 0 ? (
-                <div className="p-4 text-center text-slate-500 text-sm">No nearby train stations found</div>
+            <>
+              {selectedStation ? (
+                // Show train arrival details
+                <TrainArrivalDetails
+                  stationName={selectedStation.name}
+                  arrivals={trainArrivals}
+                  onBack={handleBackToStations}
+                  isLoading={arrivalsLoading}
+                />
               ) : (
-                filteredStations.map((station) => {
-                  // Get the next arrival time
-                  const nextArrival = station.arrivals && station.arrivals.length > 0 
-                    ? `${station.arrivals[0].WAITING_TIME || "Unknown"}`
-                    : "No data";
-                  
-                  return (
-                    <Card
-                      key={station.name}
-                      title={station.name}
-                      subtitle={`${(station.distance || 0).toFixed(2)} mi • ${station.line}`}
-                      status={nextArrival}
-                      onClick={() => fetchRoute(station.coords)}
-                    />
-                  );
-                })
+                // Show list of train stations
+                <div className="space-y-1 py-4">
+                  {trainsLoading ? (
+                    <div className="p-4 text-center text-slate-500 text-sm">Loading nearby stations...</div>
+                  ) : filteredStations.length === 0 ? (
+                    <div className="p-4 text-center text-slate-500 text-sm">No nearby train stations found</div>
+                  ) : (
+                    filteredStations.map((station) => {
+                      // Get the next arrival time
+                      const nextArrival = station.arrivals && station.arrivals.length > 0 
+                        ? `${station.arrivals[0].WAITING_TIME || "Unknown"}`
+                        : "No data";
+                      
+                      return (
+                        <Card
+                          key={station.name}
+                          title={station.name}
+                          subtitle={`${(station.distance || 0).toFixed(2)} mi • ${station.line}`}
+                          status={nextArrival}
+                          onClick={() => fetchTrainArrivals(station)}
+                        />
+                      );
+                    })
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
 
           {/* BUS VIEW */}
