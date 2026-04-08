@@ -1,62 +1,94 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Card from "../components/Card";
 import TrainArrivalDetails from "../components/TrainArrivalDetails";
 import { useNearbyTrains, useNearbyBuses } from "@/lib/hooks/useMartaData";
 
-// Dynamically import CampusMap (Leaflet requires client-side rendering)
 const CampusMap = dynamic(() => import("@/components/CampusMap"), { ssr: false });
+
+const ALL_RAIL_STATIONS = [
+  { name: "Chamblee", coords: "-84.3018,33.8863", line: "Gold" },
+  { name: "Georgia State", coords: "-84.3853,33.7537", line: "Blue/Green" },
+  { name: "Five Points", coords: "-84.3915,33.7525", line: "All Lines" },
+  { name: "Peachtree Center", coords: "-84.3876,33.7599", line: "Red/Gold" },
+  { name: "Airport", coords: "-84.4471,33.6603", line: "Red/Gold" },
+  { name: "Buckhead", coords: "-84.3681,33.8484", line: "Red" },
+  { name: "Midtown", coords: "-84.3865,33.7807", line: "Red/Gold" },
+  { name: "Arts Center", coords: "-84.3865,33.7891", line: "Red/Gold" },
+];
+
+const ALL_BUS_STOPS = [
+  { name: "Courtland St & Gilmer St", coords: "-84.3855,33.7558", routes: ["40", "816"] },
+  { name: "Piedmont Ave & Auburn Ave", coords: "-84.3842,33.7548", routes: ["816", "12"] },
+  { name: "Peachtree Center Ave & John Wesley Dobbs", coords: "-84.3858,33.7583", routes: ["110", "40"] },
+  { name: "Decatur St & Central Ave", coords: "-84.3881,33.7531", routes: ["21", "42"] },
+  { name: "Auburn Ave & Hilliard St", coords: "-84.3815,33.7495", routes: ["12", "40"] },
+  { name: "Capitol Ave & Mitchell St", coords: "-84.3921,33.7521", routes: ["15", "40"] },
+];
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [commuteMode, setCommuteMode] = useState<"CAR" | "TRAIN" | "BUS">("CAR");
   const [routeInfo, setRouteInfo] = useState<any>(null);
-
-  // ---------------------------
-  // TRAIN DETAIL STATE
-  // ---------------------------
   const [selectedStation, setSelectedStation] = useState<any>(null);
   const [trainArrivals, setTrainArrivals] = useState<any[]>([]);
-  const [arrivalsLoading, setArrivalsLoading] = useState(false);
-
-  // ---------------------------
-  // USER LOCATION STATE
-  // ---------------------------
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Fetch real-time MARTA data
-  const { trains: nearbyTrains, loading: trainsLoading } = useNearbyTrains(userCoords);
-  const { buses: nearbyBuses, loading: busesLoading } = useNearbyBuses(userCoords);
+  const { trains: nearbyTrains } = useNearbyTrains(userCoords);
+  const { buses: nearbyBuses } = useNearbyBuses(userCoords);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserCoords(coords);
-          console.log("✅ Geolocation successful:", coords);
-        },
-        (err) => {
-          console.error("❌ Geolocation error:", err);
-          console.warn("⚠️ Using default GSU location");
-          // fallback to default location
-          setUserCoords({ lat: 33.7537, lng: -84.3863 });
-        }
+        (p) => setUserCoords({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => setUserCoords({ lat: 33.7537, lng: -84.3863 })
       );
-    } else {
-      console.warn("⚠️ Geolocation not available, using default location");
-      setUserCoords({ lat: 33.7537, lng: -84.3863 });
     }
   }, []);
 
-  // ---------------------------
-  // Static parking data (coords as strings "lng,lat")
-  // ---------------------------
+  // --- COST & TIME FETCH LOGIC ---
+  const fetchRoute = async (destCoords: string) => {
+    const origin = userCoords ? `${userCoords.lng},${userCoords.lat}` : "-84.3863,33.7537";
+    try {
+      const res = await fetch(`/api/routes?origin=${origin}&destination=${destCoords}`);
+      const data = await res.json();
+      setRouteInfo(data);
+    } catch (err) {
+      console.error("Route calculation error:", err);
+    }
+  };
+
+  const handleTrainClick = async (station: any) => {
+    setSelectedStation(station);
+    fetchRoute(station.coords); // Triggers Time/Cost
+    try {
+      const res = await fetch(`/api/marta?station=${encodeURIComponent(station.name)}`);
+      const data = await res.json();
+      setTrainArrivals(data);
+    } catch (err) {
+      setTrainArrivals([]);
+    }
+  };
+
+  // --- FILTERING ---
+  const displayBuses = useMemo(() => {
+    const combined = ALL_BUS_STOPS.map(b => {
+      const live = nearbyBuses.find(n => n.name.toLowerCase().includes(b.name.toLowerCase()));
+      return live ? { ...b, ...live } : b;
+    });
+    return combined.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [searchQuery, nearbyBuses]);
+
+  const displayStations = useMemo(() => {
+    const combined = ALL_RAIL_STATIONS.map(s => {
+      const live = nearbyTrains.find(n => n.name.toLowerCase().includes(s.name.toLowerCase()));
+      return live ? { ...s, ...live } : s;
+    });
+    return combined.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [searchQuery, nearbyTrains]);
+
   const parkingDecks = [
     { name: "T Deck", status: "Full", location: "43 Gilmer St SE", coords: "-84.3866,33.7551" },
     { name: "M Deck", status: "Open", location: "33 Auburn Ave", coords: "-84.3839,33.7532" },
@@ -64,257 +96,80 @@ export default function Dashboard() {
     { name: "N Deck", status: "Limited", location: "Near Petite Science", coords: "-84.3855,33.7560" },
     { name: "Campus Center Deck", status: "Open", location: "Campus Center", coords: "-84.3863,33.7537" },
     { name: "Convocation Center Lot", status: "Open", location: "Summerhill Campus", coords: "-84.3895,33.7420" }
-  ];
-
-  // ---------------------------
-  // Group bus routes by location
-  // ---------------------------
-  const groupedBusStops = Object.values(
-    nearbyBuses.reduce((acc, stop) => {
-      if (!acc[stop.name]) {
-        acc[stop.name] = {
-          name: stop.name,
-          location: stop.name,
-          coords: stop.coords,
-          routes: stop.routes || [],
-          distance: stop.distance,
-        };
-      }
-      return acc;
-    }, {} as Record<string, any>)
-  );
-
-  // ---------------------------
-  // Filters
-  // ---------------------------
-  const filteredDecks = parkingDecks.filter(deck =>
-    deck.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredStations = nearbyTrains.filter(station =>
-    station.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredBuses = groupedBusStops.filter(stop =>
-    stop.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // ---------------------------
-  // Fetch route comparison
-  // ---------------------------
-  const fetchRoute = async (destCoords: string) => {
-    try {
-      const origin = userCoords ? `${userCoords.lng},${userCoords.lat}` : "-84.3863,33.7537";
-      const res = await fetch(`/api/routes?origin=${origin}&destination=${destCoords}`);
-      const data = await res.json();
-
-      if (commuteMode === "BUS" && data.marta && !data.bus) data.bus = data.marta;
-      if (!data.train && data.marta) data.train = data.marta;
-
-      setRouteInfo(data);
-    } catch (err) {
-      console.error("Route fetch error:", err);
-    }
-  };
-
-  // ---------------------------
-  // Fetch train arrivals for a selected station
-  // ---------------------------
-  const fetchTrainArrivals = async (station: any) => {
-    setSelectedStation(station);
-    setArrivalsLoading(true);
-    try {
-      const res = await fetch(`/api/marta?station=${encodeURIComponent(station.name)}`);
-      const data = await res.json();
-      setTrainArrivals(data);
-      // Also fetch route info for this station
-      fetchRoute(station.coords);
-    } catch (err) {
-      console.error("Train arrivals fetch error:", err);
-      setTrainArrivals([]);
-    } finally {
-      setArrivalsLoading(false);
-    }
-  };
-
-  // ---------------------------
-  // Back button handler for train details
-  // ---------------------------
-  const handleBackToStations = () => {
-    setSelectedStation(null);
-    setTrainArrivals([]);
-  };
+  ].filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <main className="flex h-screen w-full bg-[#FDFCF7] font-sans overflow-hidden text-slate-900">
-
-      {/* SIDEBAR */}
-      <section className="w-[420px] bg-white border-r border-slate-200 shadow-xl flex flex-col z-30 overflow-hidden">
-
-        {/* Header */}
-        <div className="p-8 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-br-[40px] shadow-lg">
-          <h1 className="text-2xl font-black tracking-tighter italic">GSU COMMUTER</h1>
-          <p className="text-[10px] font-bold opacity-70 mt-1 tracking-[0.2em]">SMART CAMPUS NAVIGATION</p>
-        </div>
-
-        {/* Search bar */}
-        <div className="px-8 py-6 border-b border-slate-100 bg-[#F9F7F0]/50">
+    <main className="flex h-screen w-full bg-[#FDFCF7] overflow-hidden text-slate-900">
+      <aside className="w-[420px] bg-white border-r flex flex-col z-30 shadow-xl">
+        <div className="p-8 bg-blue-700 text-white rounded-br-[40px] shadow-lg">
+          <h1 className="text-2xl font-black italic tracking-tighter">GSU COMMUTER</h1>
           <input
             type="text"
-            placeholder="Search for parking or stations..."
-            className="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Search Chamblee, T-Deck, etc..."
+            className="w-full mt-4 px-4 py-2 rounded-lg text-slate-800 text-sm outline-none"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        {/* Route recommendation with costs*/}
+        {/* TIME & COST PANEL */}
         {routeInfo && (
-          <div className="mx-8 my-4 p-5 bg-blue-50 rounded-3xl border border-blue-100 shadow-sm relative animate-in fade-in slide-in-from-top-4 duration-300">
-            <button 
-              onClick={() => setRouteInfo(null)}
-              className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              ✕
-            </button>
-            
-            <p className="font-bold text-blue-900 text-xs mb-3 flex items-center gap-2">
-              ⭐ RECOMMENDED: <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">{routeInfo.recommended}</span>
-            </p>
-
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {/* Car Column */}
-              <div className="bg-white p-3 rounded-xl border border-blue-100 flex flex-col items-center">
-                <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Car</p>
-                <p className="text-lg font-black text-slate-700">{routeInfo.car ?? "--"} min</p>
-                <p className="text-[10px] font-bold text-blue-600">${routeInfo.costs?.car}</p>
+          <div className="mx-6 my-4 p-5 bg-blue-50 rounded-3xl border border-blue-100 relative animate-in fade-in slide-in-from-top-4">
+            <button onClick={() => setRouteInfo(null)} className="absolute top-3 right-3 text-slate-400">✕</button>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-white p-2 rounded-xl text-center shadow-sm">
+                <p className="text-[9px] font-bold text-slate-400 uppercase">🚗 Car</p>
+                <p className="text-sm font-black text-slate-700">{routeInfo.car} min</p>
+                <p className="text-[10px] text-blue-600 font-bold">${routeInfo.costs?.car}</p>
               </div>
-
-              {/* Train Column */}
-              <div className="bg-white p-3 rounded-xl border border-blue-100 flex flex-col items-center">
-                <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Train</p>
-                <p className="text-lg font-black text-slate-700">{routeInfo.train ?? "--"} min</p>
-                <p className="text-[10px] font-bold text-green-600">$2.50</p>
+              <div className="bg-white p-2 rounded-xl text-center shadow-sm">
+                <p className="text-[9px] font-bold text-slate-400 uppercase">🚆 Train</p>
+                <p className="text-sm font-black text-slate-700">{routeInfo.train} min</p>
+                <p className="text-[10px] text-green-600 font-bold">$2.50</p>
               </div>
-
-              {/* Bus Column */}
-              <div className="bg-white p-3 rounded-xl border border-blue-100 flex flex-col items-center">
-                <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Bus</p>
-                <p className="text-lg font-black text-slate-700">{routeInfo.bus ?? "--"} min</p>
-                <p className="text-[10px] font-bold text-green-600">$2.50</p>
+              <div className="bg-white p-2 rounded-xl text-center shadow-sm">
+                <p className="text-[9px] font-bold text-slate-400 uppercase">🚌 Bus</p>
+                <p className="text-sm font-black text-slate-700">{routeInfo.bus} min</p>
+                <p className="text-[10px] text-green-600 font-bold">$2.50</p>
               </div>
             </div>
-
-            {/* Dynamic Recommendation Message */}
-            <div className="bg-blue-600/5 p-3 rounded-xl border border-blue-200">
-              <p className="text-[11px] font-medium text-blue-800 leading-tight">
-                {routeInfo.recMessage}
-              </p>
-            </div>
+            <p className="text-[11px] font-medium text-blue-800 bg-blue-100/50 p-2 rounded-lg">{routeInfo.recMessage}</p>
           </div>
         )}
 
-        {/* LIST CONTENT */}
-        <div className="flex-1 overflow-y-auto px-4">
-          {/* CAR VIEW */}
-          {commuteMode === "CAR" && (
-            <div className="space-y-1 py-4">
-              {filteredDecks.map((deck) => (
-                <Card
-                  key={deck.name}
-                  title={deck.name}
-                  subtitle={deck.location}
-                  status={deck.status}
-                  onClick={() => fetchRoute(deck.coords)} // coords is a string
-                />
-              ))}
-            </div>
-          )}
-
-          {/* TRAIN VIEW */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          {commuteMode === "CAR" && parkingDecks.map(d => (
+            <Card key={d.name} title={d.name} subtitle={d.location} status={d.status} onClick={() => fetchRoute(d.coords)} />
+          ))}
+          
           {commuteMode === "TRAIN" && (
-            <>
-              {selectedStation ? (
-                // Show train arrival details
-                <TrainArrivalDetails
-                  stationName={selectedStation.name}
-                  arrivals={trainArrivals}
-                  onBack={handleBackToStations}
-                  isLoading={arrivalsLoading}
-                />
-              ) : (
-                // Show list of train stations
-                <div className="space-y-1 py-4">
-                  {trainsLoading ? (
-                    <div className="p-4 text-center text-slate-500 text-sm">Loading nearby stations...</div>
-                  ) : filteredStations.length === 0 ? (
-                    <div className="p-4 text-center text-slate-500 text-sm">No nearby train stations found</div>
-                  ) : (
-                    filteredStations.map((station) => {
-                      // Get the next arrival time
-                      const nextArrival = station.arrivals && station.arrivals.length > 0 
-                        ? `${station.arrivals[0].WAITING_TIME || "Unknown"}`
-                        : "No data";
-                      
-                      return (
-                        <Card
-                          key={station.name}
-                          title={station.name}
-                          subtitle={`${(station.distance || 0).toFixed(2)} mi • ${station.line}`}
-                          status={nextArrival}
-                          onClick={() => fetchTrainArrivals(station)}
-                        />
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </>
+            selectedStation ? (
+              <TrainArrivalDetails stationName={selectedStation.name} arrivals={trainArrivals} onBack={() => setSelectedStation(null)} isLoading={false} />
+            ) : displayStations.map(s => (
+              <Card key={s.name} title={s.name} subtitle={s.line} status="View Info" onClick={() => handleTrainClick(s)} />
+            ))
           )}
 
-          {/* BUS VIEW */}
-          {commuteMode === "BUS" && (
-            <div className="space-y-1 py-4">
-              {busesLoading ? (
-                <div className="p-4 text-center text-slate-500 text-sm">Loading nearby bus stops...</div>
-              ) : filteredBuses.length === 0 ? (
-                <div className="p-4 text-center text-slate-500 text-sm">No nearby bus stops found</div>
-              ) : (
-                filteredBuses.map((stop) => {
-                  const routesString = stop.routes.join(", ");
-                  const status = stop.routes && stop.routes.length > 0 ? "Active" : "Pending";
-                  
-                  return (
-                    <Card
-                      key={stop.name}
-                      title={`Routes: ${routesString}`}
-                      subtitle={`${(stop.distance || 0).toFixed(2)} mi • ${stop.name}`}
-                      status={status}
-                      onClick={() => fetchRoute(stop.coords)}
-                    />
-                  );
-                })
-              )}
-            </div>
-          )}
+          {commuteMode === "BUS" && displayBuses.map(b => (
+            <Card key={b.name} title={b.name} subtitle={b.routes.join(", ")} status="Bus Stop" onClick={() => fetchRoute(b.coords)} />
+          ))}
         </div>
 
-        {/* TOGGLE BUTTONS */}
-        <div className="p-6 border-t bg-white flex gap-2">
-          <button onClick={() => setCommuteMode("CAR")} className={`flex-1 py-4 rounded-xl text-xs font-black transition-all ${commuteMode === "CAR" ? "bg-blue-600 text-white shadow-lg scale-[1.02]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>🚗 CAR</button>
-          <button onClick={() => setCommuteMode("TRAIN")} className={`flex-1 py-4 rounded-xl text-xs font-black transition-all ${commuteMode === "TRAIN" ? "bg-blue-600 text-white shadow-lg scale-[1.02]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>🚆 TRAIN</button>
-          <button onClick={() => setCommuteMode("BUS")} className={`flex-1 py-4 rounded-xl text-[10px] font-black transition-all ${commuteMode === "BUS" ? "bg-blue-600 text-white shadow-lg scale-[1.02]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>🚌 BUS</button>
-        </div>
-      </section>
+        <nav className="p-4 border-t bg-white flex gap-2">
+          {["CAR", "TRAIN", "BUS"].map(m => (
+            <button key={m} onClick={() => { setCommuteMode(m as any); setSelectedStation(null); }} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${commuteMode === m ? "bg-blue-600 text-white shadow-md" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>
+              {m}
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      {/* MAP */}
-      <section className="flex-1 relative h-full w-full z-0">
+      <section className="flex-1">
         <CampusMap 
           commuteMode={commuteMode} 
           routePath={routeInfo?.path} 
-          busRoutes={[]} 
-          busData={[]} 
-          trainData={[]} 
+          trainData={displayStations} 
+          busData={displayBuses} 
         />
       </section>
     </main>
