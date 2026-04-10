@@ -99,14 +99,18 @@ export default function Dashboard() {
   ].filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <main className="flex h-screen w-full bg-[#FDFCF7] overflow-hidden text-slate-900">
+    <main className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden text-slate-900">
       <aside className="w-[420px] bg-white border-r flex flex-col z-30 shadow-xl">
-        <div className="p-8 bg-blue-700 text-white rounded-br-[40px] shadow-lg">
-          <h1 className="text-2xl font-black italic tracking-tighter">GSU COMMUTER</h1>
+
+        {/* GSU BRANDED HEADER */}
+        <div className="p-8 bg-white border-b border-slate-100 rounded-br-[40px]">
+          <h1 className="text-2xl font-black italic tracking-tighter"
+          style={{ color: "#0039A6" }}>GSU COMMUTER</h1>
           <input
             type="text"
             placeholder="Search Chamblee, T-Deck, etc..."
-            className="w-full mt-4 px-4 py-2 rounded-lg text-slate-800 text-sm outline-none"
+            className="w-full mt-4 px-4 py-3 rounded-lg text-slate-800 text-sm outline-none"
+            style={{ boxSizing: 'border-box' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -114,7 +118,8 @@ export default function Dashboard() {
 
         {/* TIME & COST PANEL */}
         {routeInfo && (
-          <div className="mx-6 my-4 p-5 bg-blue-50 rounded-3xl border border-blue-100 relative animate-in fade-in slide-in-from-top-4">
+          <div className="mx-6 my-4 p-5 bg-blue-50 rounded-3xl border border-blue-100 relative animate-in fade-in slide-in-from-top-4"
+          style={{ backgroundColor: "#c7d6ed"}}>
             <button onClick={() => setRouteInfo(null)} className="absolute top-3 right-3 text-slate-400">✕</button>
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="bg-white p-2 rounded-xl text-center shadow-sm">
@@ -155,9 +160,22 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <nav className="p-4 border-t bg-white flex gap-2">
+        {/* BOTTOM NAV */}
+        <nav className="p-5 border-t border-slate-100 bg-white flex gap-2 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
           {["CAR", "TRAIN", "BUS"].map(m => (
-            <button key={m} onClick={() => { setCommuteMode(m as any); setSelectedStation(null); }} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${commuteMode === m ? "bg-blue-600 text-white shadow-md" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>
+            <button 
+              key={m} 
+              onClick={() => { setCommuteMode(m as any); setSelectedStation(null); }} 
+              style={{
+                //Color separation when the toggle button is pressed and when it is not.
+                backgroundColor: commuteMode === m ? "#154ebb" : "#DCE4F0",
+                color: commuteMode === m ? "white" : "#7296C1",
+              }}
+              
+              className={`flex-1 py-6 rounded-2xl text-sm font-black tracking-widest transition-all border-none outline-none shadow-sm ${
+                commuteMode === m ? "shadow-md scale-[1.05]" : "hover:bg-[#BAC9E0]"
+              }`}
+            >
               {m}
             </button>
           ))}
