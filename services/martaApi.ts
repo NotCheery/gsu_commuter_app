@@ -34,6 +34,7 @@ export interface MartaBus {
   TIMEPOINT: string;
   TRIPID: string;
   VEHICLE: string;
+  VEHICLE_ID: string;
 }
 
 export const getRealtimeBusData = async (routeNumber: string) => {
