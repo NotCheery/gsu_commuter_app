@@ -9,7 +9,6 @@
 - [Contributors](#contributors)
 - [Future Implementation](#future-implementation)
 - [Learn More](#learn-more)
-- [App Image](#app-image)
 
 ## Project Overview
 
@@ -108,8 +107,3 @@ To learn more about Next.js, take a look at the following resources:
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-# App Image
-![alt text](public\gsu_Commuter_Parking.png)
-
-![alt text](public\gsuTrain.png)
