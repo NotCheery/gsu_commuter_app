@@ -9,6 +9,7 @@
 - [Contributors](#contributors)
 - [Future Implementation](#future-implementation)
 - [Learn More](#learn-more)
+- [App Image](#app-image)
 
 ## Project Overview
 
@@ -18,10 +19,9 @@ A web application for GSU students and faculty to help them with their daily com
 
 | Feature                      | Description                                                                                              |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Mapping**                  | Interactive map to display routing and stops. locations.                               |
-| **Bus Stops Near Campus**         | Displays nearby bus stops on campus                              |
-| **Bus Arrival Times**        | Provides estimated arrival times for buses at specific stops.                                            |
-| **Real-time Train Tracking** | Shows the real-time location of MARTA trains.                                                            |
+| **Mapping**                  | Interactive map to display routing to stations and bus stops.                              |
+| **Routing by Transportation**                  | Selecting a station/stop triggers an alert, displaying estimated time by car, train, bus                              |
+| **Bus Stops Near Campus**         | Displays nearby bus stops on campus                              |                                              |
 | **Train Arrival Times**      | Provides real-time arrival information for trains at various stations.                                   |
 | **Campus Parking**           | Information about parking availability on the GSU campus.                       |
 
@@ -109,3 +109,7 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+# App Image
+![alt text](image.png)
+
+![alt text](image-1.png)
