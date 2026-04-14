@@ -110,6 +110,6 @@ To learn more about Next.js, take a look at the following resources:
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 # App Image
-![alt text](image.png)
+![alt text](public\gsu_Commuter_Parking.png)
 
-![alt text](image-1.png)
+![alt text](public\gsuTrain.png)
