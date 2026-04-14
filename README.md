@@ -78,7 +78,7 @@ npm install react-leaflet
 
 ## Deployment
 
-This application is deployed on Vercel. You can view the live application at [gsu-commuter-app-mb6g-2eblp2zhi-notcheerys-projects.vercel.app](gsu-commuter-app-mb6g-2eblp2zhi-notcheerys-projects.vercel.app)
+This application is deployed on Vercel. You can view the live application at https://gsu-commuter-app-mb6g-2eblp2zhi-notcheerys-projects.vercel.app/ 
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
