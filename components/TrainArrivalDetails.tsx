@@ -16,6 +16,7 @@ interface TrainArrivalDetailsProps {
   arrivals: TrainArrival[];
   onBack: () => void;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export default function TrainArrivalDetails({
@@ -23,6 +24,7 @@ export default function TrainArrivalDetails({
   arrivals,
   onBack,
   isLoading = false,
+  error = null,
 }: TrainArrivalDetailsProps) {
   // Map direction codes to full names
   const getDirectionName = (code: string): string => {
@@ -96,8 +98,16 @@ export default function TrainArrivalDetails({
       {/* Arrivals Content */}
       {isLoading ? (
         <div className="p-6 text-center text-slate-500 text-sm">Loading train arrivals...</div>
+      ) : error ? (
+        <div className="p-6 text-center">
+          <div className="text-red-600 text-sm font-medium mb-2">⚠️ {error}</div>
+          <p className="text-slate-500 text-xs">Try a different station or check back later</p>
+        </div>
       ) : arrivals.length === 0 ? (
-        <div className="p-6 text-center text-slate-500 text-sm">No arrivals available</div>
+        <div className="p-6 text-center">
+          <div className="text-amber-600 text-sm font-medium mb-2">ℹ️ No trains currently available</div>
+          <p className="text-slate-500 text-xs">Check back in a few minutes for next arrivals</p>
+        </div>
       ) : (
         <div className="overflow-y-auto">
           {Object.entries(groupedByDirectionAndDest).map(([direction, destinations], sectionIdx) => (

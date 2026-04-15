@@ -41,6 +41,7 @@ export const getRealtimeBusData = async (routeNumber: string) => {
   try {
     const response = await axios.get(MARTA_GTFS_PB_URL, {
       responseType: 'arraybuffer',
+      timeout: 10000, // 10 second timeout
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
 
@@ -57,32 +58,71 @@ export const getRealtimeBusData = async (routeNumber: string) => {
           LATITUDE: String(v.position?.latitude || "0"),
           LONGITUDE: String(v.position?.longitude || "0"),
           VEHICLE_ID: v.vehicle?.id || "Unknown",
-          ADHERENCE: "0", // GTFS-RT usually doesn't have adherence; you'd need the REST API for that
+          ADHERENCE: "0",
           BLOCKID: "", BLOCK_ABBR: "", DIRECTION: "", MSGTIME: "", STOPID: "", TIMEPOINT: "", TRIPID: "", VEHICLE: ""
         };
       })
       .filter(bus => 
-        // 👈 FIX: Check if the route ID contains the number (e.g., "110" in "0110")
         String(bus.ROUTE).includes(String(routeNumber))
       );
 
     return filteredBuses;
   } catch (error) {
-    console.error("❌ GTFS Error:", error);
+    console.error("❌ GTFS Error:", error instanceof Error ? error.message : error);
     return [];
   }
 };
 
 export const getRealtimeTrainData = async (stationName: string) => {
-    try {
-        const response = await axios.get<MartaTrain[]>(MARTA_RAIL_URL);
-        const allTrains = response.data;
+    const maxRetries = 3;
+    let lastError: any = null;
 
-        return allTrains.filter((train) =>
-            // 👈 FIX: Use .includes() so it works whether " STATION" is there or not
-            train.STATION.toUpperCase().includes(stationName.toUpperCase())
-        );
-    } catch (error) {
-        return [];
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const response = await axios.get<MartaTrain[]>(MARTA_RAIL_URL, {
+                timeout: 10000 // 10 second timeout
+            });
+            const allTrains = response.data;
+
+            console.log(`[MARTA] Attempt ${attempt}: Successfully fetched ${allTrains.length} trains for "${stationName}"`);
+            
+            // Normalize search term: uppercase and remove extra spaces
+            const searchTerm = stationName.toUpperCase().trim();
+            
+            // Filter with EXACT matching:
+            // Match if station is exactly the search term, or search term + " STATION", or " STATION" + search term
+            const filtered = allTrains.filter((train) => {
+                const station = train.STATION.toUpperCase().trim();
+                
+                // Exact match
+                if (station === searchTerm) return true;
+                
+                // Match with " STATION" suffix
+                if (station === `${searchTerm} STATION`) return true;
+                
+                // Match if search term is contained but followed by " STATION" or end of string
+                const searchRegex = new RegExp(`^${searchTerm}(\\s+STATION)?$`);
+                if (searchRegex.test(station)) return true;
+                
+                return false;
+            });
+
+            console.log(`[MARTA] Found ${filtered.length} trains matching "${stationName}"`);
+            return filtered;
+        } catch (error) {
+            lastError = error;
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            console.warn(`[MARTA] Attempt ${attempt}/${maxRetries} failed: ${errorMsg}`);
+            
+            // If we have more retries, wait before trying again
+            if (attempt < maxRetries) {
+                const delayMs = 500 * attempt;
+                console.log(`[MARTA] Retrying in ${delayMs}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
     }
+
+    console.error(`[MARTA] Failed to fetch train data for "${stationName}" after ${maxRetries} attempts`);
+    return [];
 }

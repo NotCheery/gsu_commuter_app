@@ -34,6 +34,8 @@ export default function Dashboard() {
   const [routeInfo, setRouteInfo] = useState<any>(null);
   const [selectedStation, setSelectedStation] = useState<any>(null);
   const [trainArrivals, setTrainArrivals] = useState<any[]>([]);
+  const [trainLoadingError, setTrainLoadingError] = useState<string | null>(null);
+  const [isLoadingTrains, setIsLoadingTrains] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const { trains: nearbyTrains } = useNearbyTrains(userCoords);
@@ -62,13 +64,24 @@ export default function Dashboard() {
 
   const handleTrainClick = async (station: any) => {
     setSelectedStation(station);
+    setIsLoadingTrains(true);
+    setTrainLoadingError(null);
     fetchRoute(station.coords); // Triggers Time/Cost
     try {
       const res = await fetch(`/api/marta?station=${encodeURIComponent(station.name)}`);
+      if (!res.ok) {
+        throw new Error(`API returned ${res.status}`);
+      }
       const data = await res.json();
+      console.log(`Train arrivals for ${station.name}:`, data);
       setTrainArrivals(data);
+      // Don't set error for empty data - it's valid (no trains available right now)
     } catch (err) {
+      console.error("Train data fetch error:", err);
+      setTrainLoadingError(`Failed to load train arrivals: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setTrainArrivals([]);
+    } finally {
+      setIsLoadingTrains(false);
     }
   };
 
@@ -149,7 +162,17 @@ export default function Dashboard() {
           
           {commuteMode === "TRAIN" && (
             selectedStation ? (
-              <TrainArrivalDetails stationName={selectedStation.name} arrivals={trainArrivals} onBack={() => setSelectedStation(null)} isLoading={false} />
+              <TrainArrivalDetails 
+                stationName={selectedStation.name} 
+                arrivals={trainArrivals} 
+                onBack={() => {
+                  setSelectedStation(null);
+                  setTrainArrivals([]);
+                  setTrainLoadingError(null);
+                }} 
+                isLoading={isLoadingTrains}
+                error={trainLoadingError}
+              />
             ) : displayStations.map(s => (
               <Card key={s.name} title={s.name} subtitle={s.line} status="View Info" onClick={() => handleTrainClick(s)} />
             ))
