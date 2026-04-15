@@ -77,7 +77,7 @@ npm install react-leaflet
 
 ## Deployment
 
-This application is deployed on Vercel. You can view the live application at https://gsu-commuter-app-mb6g-2eblp2zhi-notcheerys-projects.vercel.app?_vercel_share=9s37ijiKVRAUB2LLxcad5RQdW5rttq8O 
+This application is deployed on Vercel. You can view the live application at https://gsu-commuter-app.vercel.app/ 
 
 **Please allow the site to access your location for better experience.**
 
